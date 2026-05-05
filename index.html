@@ -1,9 +1,274 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Hello, World! inayeth govender test </title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HubSpot Marketing Dashboard</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <h1>Hello, World! inayeth was here </h1>
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-gear"></i> HubSpot API Settings</h2>
+        <button class="modal-close" id="close-settings"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-hint">
+          Enter your HubSpot <strong>Private App Access Token</strong>. Create one in HubSpot under
+          <em>Settings → Integrations → Private Apps</em> with scopes:
+          <code>crm.objects.contacts.read</code>, <code>crm.objects.deals.read</code>, <code>content</code>.
+        </p>
+        <label for="api-token">Access Token</label>
+        <div class="input-row">
+          <input type="password" id="api-token" placeholder="pat-na1-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" />
+          <button class="btn btn-secondary" id="toggle-token"><i class="fa-solid fa-eye"></i></button>
+        </div>
+        <div id="token-error" class="error-msg hidden"></div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="use-demo">Use Demo Data</button>
+          <button class="btn btn-primary" id="save-token">Connect</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- App Shell -->
+  <div id="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <span class="logo-icon"><i class="fa-solid fa-chart-line"></i></span>
+        <span class="logo-text">MarketingHub</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-section="overview">
+          <i class="fa-solid fa-gauge-high"></i><span>Overview</span>
+        </a>
+        <a href="#" class="nav-item" data-section="leads">
+          <i class="fa-solid fa-users"></i><span>Leads</span>
+        </a>
+        <a href="#" class="nav-item" data-section="campaigns">
+          <i class="fa-solid fa-bullhorn"></i><span>Campaigns</span>
+        </a>
+        <a href="#" class="nav-item" data-section="emails">
+          <i class="fa-solid fa-envelope"></i><span>Emails</span>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="btn-icon" id="settings-btn" title="API Settings">
+          <i class="fa-solid fa-gear"></i>
+        </button>
+        <span id="connection-badge" class="badge badge-demo">Demo</span>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main">
+      <!-- Top bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 id="page-title">Overview</h1>
+          <span id="last-updated" class="text-muted"></span>
+        </div>
+        <div class="topbar-right">
+          <div class="date-range">
+            <button class="range-btn active" data-days="30">30d</button>
+            <button class="range-btn" data-days="60">60d</button>
+            <button class="range-btn" data-days="90">90d</button>
+          </div>
+          <button class="btn btn-primary btn-sm" id="refresh-btn">
+            <i class="fa-solid fa-rotate-right"></i> Refresh
+          </button>
+        </div>
+      </header>
+
+      <!-- Loading overlay -->
+      <div id="loading" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Fetching data from HubSpot…</p>
+      </div>
+
+      <!-- Overview Section -->
+      <section id="section-overview" class="content-section">
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-icon icon-blue"><i class="fa-solid fa-users"></i></div>
+            <div class="kpi-body">
+              <span class="kpi-label">Total Leads</span>
+              <span class="kpi-value" id="kpi-total-leads">—</span>
+              <span class="kpi-delta" id="kpi-total-leads-delta"></span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon icon-green"><i class="fa-solid fa-user-plus"></i></div>
+            <div class="kpi-body">
+              <span class="kpi-label">New Leads (Period)</span>
+              <span class="kpi-value" id="kpi-new-leads">—</span>
+              <span class="kpi-delta" id="kpi-new-leads-delta"></span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon icon-orange"><i class="fa-solid fa-bullhorn"></i></div>
+            <div class="kpi-body">
+              <span class="kpi-label">Active Campaigns</span>
+              <span class="kpi-value" id="kpi-campaigns">—</span>
+              <span class="kpi-delta" id="kpi-campaigns-delta"></span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon icon-purple"><i class="fa-solid fa-envelope-open-text"></i></div>
+            <div class="kpi-body">
+              <span class="kpi-label">Email Open Rate</span>
+              <span class="kpi-value" id="kpi-open-rate">—</span>
+              <span class="kpi-delta" id="kpi-open-rate-delta"></span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon icon-teal"><i class="fa-solid fa-arrow-pointer"></i></div>
+            <div class="kpi-body">
+              <span class="kpi-label">Click-Through Rate</span>
+              <span class="kpi-value" id="kpi-ctr">—</span>
+              <span class="kpi-delta" id="kpi-ctr-delta"></span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon icon-red"><i class="fa-solid fa-handshake"></i></div>
+            <div class="kpi-body">
+              <span class="kpi-label">Deals Created</span>
+              <span class="kpi-value" id="kpi-deals">—</span>
+              <span class="kpi-delta" id="kpi-deals-delta"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts row 1 -->
+        <div class="charts-grid-2">
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Lead Acquisition Over Time</h3>
+              <span class="chart-badge">Daily</span>
+            </div>
+            <div class="chart-container"><canvas id="leads-timeline-chart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Lead Sources</h3>
+            </div>
+            <div class="chart-container chart-container--sm"><canvas id="lead-sources-chart"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Charts row 2 -->
+        <div class="charts-grid-2">
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Campaign Email Performance</h3>
+              <span class="chart-badge">Top 6</span>
+            </div>
+            <div class="chart-container"><canvas id="campaign-perf-chart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Lead Status Breakdown</h3>
+            </div>
+            <div class="chart-container chart-container--sm"><canvas id="lead-status-chart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Leads Section -->
+      <section id="section-leads" class="content-section hidden">
+        <div class="section-toolbar">
+          <input type="text" class="search-input" id="leads-search" placeholder="Search by name or email…" />
+          <select class="select-input" id="leads-status-filter">
+            <option value="">All Statuses</option>
+            <option value="new">New</option>
+            <option value="open">Open</option>
+            <option value="in_progress">In Progress</option>
+            <option value="qualified">Qualified</option>
+            <option value="unqualified">Unqualified</option>
+          </select>
+        </div>
+        <div class="table-card">
+          <table class="data-table" id="leads-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Lead Status</th>
+                <th>Source</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody id="leads-tbody"></tbody>
+          </table>
+          <div class="table-footer">
+            <span id="leads-count" class="text-muted"></span>
+            <div class="pagination" id="leads-pagination"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Campaigns Section -->
+      <section id="section-campaigns" class="content-section hidden">
+        <div class="table-card">
+          <table class="data-table" id="campaigns-table">
+            <thead>
+              <tr>
+                <th>Campaign</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Sent</th>
+                <th>Opens</th>
+                <th>Clicks</th>
+                <th>Open Rate</th>
+                <th>CTR</th>
+              </tr>
+            </thead>
+            <tbody id="campaigns-tbody"></tbody>
+          </table>
+          <div class="table-footer">
+            <span id="campaigns-count" class="text-muted"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Emails Section -->
+      <section id="section-emails" class="content-section hidden">
+        <div class="section-toolbar">
+          <input type="text" class="search-input" id="emails-search" placeholder="Search emails…" />
+        </div>
+        <div class="table-card">
+          <table class="data-table" id="emails-table">
+            <thead>
+              <tr>
+                <th>Subject</th>
+                <th>Status</th>
+                <th>Sent</th>
+                <th>Delivered</th>
+                <th>Opens</th>
+                <th>Clicks</th>
+                <th>Unsubscribes</th>
+                <th>Sent Date</th>
+              </tr>
+            </thead>
+            <tbody id="emails-tbody"></tbody>
+          </table>
+          <div class="table-footer">
+            <span id="emails-count" class="text-muted"></span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
