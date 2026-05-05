@@ -21,6 +21,7 @@
 
   /* ── Boot ── */
   document.addEventListener('DOMContentLoaded', () => {
+    bindEvents();
     const saved = localStorage.getItem(TOKEN_KEY);
     if (saved) {
       HubSpotAPI.setToken(saved);
@@ -28,9 +29,11 @@
       updateConnectionBadge();
       loadData();
     } else {
-      openSettings();
+      // Auto-start in demo mode; user can connect real token via settings
+      state.mode = 'demo';
+      updateConnectionBadge();
+      loadData();
     }
-    bindEvents();
   });
 
   /* ── Event Binding ── */
